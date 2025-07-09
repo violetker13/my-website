@@ -1,10 +1,172 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="utf-8">
-    <title>Главная страница</title>
-  </head>
-  <body>
-    Привет
-  </body>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Загрузчик фото/видео</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f0f0f0;
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  #drop-area {
+    border: 3px dashed #888;
+    border-radius: 12px;
+    padding: 40px;
+    width: 400px;
+    text-align: center;
+    background: white;
+    cursor: pointer;
+  }
+  #drop-area.hover {
+    border-color: #333;
+  }
+  #fileElem {
+    display: none;
+  }
+  #gallery {
+    margin-top: 20px;
+    width: 400px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill,minmax(100px,1fr));
+    gap: 10px;
+  }
+  .thumb {
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+  }
+  .thumb img,
+  .thumb video {
+    width: 100%;
+    height: 100px;
+    object-fit: cover;
+    display: block;
+  }
+  .thumb a {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    right: 2px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    font-size: 10px;
+    padding: 2px 4px;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #loading {
+    margin-top: 10px;
+    color: #007bff;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+<div id="drop-area">
+  <p>Перетащи сюда фото или видео<br>или кликни, чтобы выбрать файл</p>
+  <input type="file" id="fileElem" multiple accept="image/*,video/*" />
+</div>
+<div id="loading" style="display:none;">Загрузка...</div>
+<div id="gallery"></div>
+
+<script>
+  const dropArea = document.getElementById('drop-area');
+  const fileInput = document.getElementById('fileElem');
+  const gallery = document.getElementById('gallery');
+  const loading = document.getElementById('loading');
+
+  const CLOUD_NAME = 'violetker13'; // замени на свой Cloudinary cloud name
+  const UPLOAD_PRESET = 'unsigned'; // замени на свой upload preset
+
+  function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, preventDefaults, false);
+  });
+
+  ['dragenter', 'dragover'].forEach(eventName => {
+    dropArea.addEventListener(eventName, () => dropArea.classList.add('hover'), false);
+  });
+
+  ['dragleave', 'drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, () => dropArea.classList.remove('hover'), false);
+  });
+
+  dropArea.addEventListener('drop', handleDrop, false);
+  dropArea.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    handleFiles(fileInput.files);
+  });
+
+  function handleDrop(e) {
+    let dt = e.dataTransfer;
+    let files = dt.files;
+    handleFiles(files);
+  }
+
+  async function uploadFile(file) {
+    loading.style.display = 'block';
+    const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`;
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', UPLOAD_PRESET);
+
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      addFileToGallery(data.secure_url, file.type, file.name);
+    } catch (err) {
+      alert('Ошибка загрузки: ' + err.message);
+    } finally {
+      loading.style.display = 'none';
+    }
+  }
+
+  function addFileToGallery(url, type, name) {
+    const div = document.createElement('div');
+    div.className = 'thumb';
+
+    if (type.startsWith('image')) {
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = name;
+      div.appendChild(img);
+    } else if (type.startsWith('video')) {
+      const video = document.createElement('video');
+      video.src = url;
+      video.controls = true;
+      div.appendChild(video);
+    }
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.textContent = name;
+    div.appendChild(link);
+
+    gallery.appendChild(div);
+  }
+
+  function handleFiles(files) {
+    [...files].forEach(uploadFile);
+  }
+</script>
+
+</body>
 </html>
